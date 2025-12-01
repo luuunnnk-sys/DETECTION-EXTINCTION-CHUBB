@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architecture & Sécurité 3D - Pro</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Three.js & Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+
+<body>
+
+    <div id="canvas-container"></div>
+    <div id="toast-msg"><i class="fas fa-info-circle"></i> <span id="toast-text">Mode Actif</span></div>
+
+    <div id="controls">
+        <div class="tabs">
+            <div id="btn-tab-arch" class="tab-btn active" onclick="switchTab('arch')"><i class="fas fa-layer-group"></i>
+                Archi</div>
+            <div id="btn-tab-furn" class="tab-btn" onclick="switchTab('furn')"><i class="fas fa-couch"></i> Aménagement
+            </div>
+            <div id="btn-tab-det" class="tab-btn" onclick="switchTab('det')"><i class="fas fa-shield-alt"></i> Sécurité
+            </div>
+            <div id="btn-tab-ext" class="tab-btn" onclick="switchTab('ext')"><i class="fas fa-fire-extinguisher"></i>
+                Extinction</div>
+        </div>
+
+        <!-- Tab 1: Architecture -->
+        <div id="tab-arch" class="tab-content">
+            <div class="control-group">
+                <h3><i class="fas fa-ruler-combined"></i> Dimensions Salle</h3>
+                <label>Longueur (m) <input type="number" id="dim-l" value="10" step="0.5"
+                        onchange="updateBuilding()"></label>
+                <label>Largeur (m) <input type="number" id="dim-w" value="8" step="0.5"
+                        onchange="updateBuilding()"></label>
+            </div>
+            <div class="control-group">
+                <h3><i class="fas fa-layer-group"></i> Hauteurs (m)</h3>
+                <label>Faux-Plancher <input type="number" id="h-fp" value="0.5" step="0.1"
+                        onchange="updateBuilding()"></label>
+                <label>Ambiance <input type="number" id="h-amb" value="3.0" step="0.1"
+                        onchange="updateBuilding()"></label>
+                <label>Faux-Plafond <input type="number" id="h-fc" value="0.5" step="0.1"
+                        onchange="updateBuilding()"></label>
+            </div>
+            <div class="control-group">
+                <h3><i class="fas fa-door-open"></i> Portes & Fenêtres</h3>
+                <label>Type Porte
+                    <select id="door-type">
+                        <option value="single">Simple (0.9m)</option>
+                        <option value="double">Double (1.8m)</option>
+                    </select>
+                </label>
+                <div class="flex gap-2 mt-2">
+                    <button class="btn-primary flex-1" id="btn-place-door" onclick="toggleDoorMode()"><i
+                            class="fas fa-plus"></i> Placer
+                        Porte</button>
+                    <button class="btn-danger" id="btn-delete-door" onclick="toggleDeleteMode()"><i
+                            class="fas fa-eraser"></i></button>
+                </div>
+                <div class="mt-2 text-xs text-gray-400">
+                    <label class="flex items-center"><input type="checkbox" id="snap-door-angle" checked> Snap
+                        90°</label>
+                </div>
+                <div id="door-list" class="item-list mt-2"></div>
+            </div>
+            <div class="control-group">
+                <h3><i class="fas fa-eye"></i> Visibilité</h3>
+                <label><input type="checkbox" id="vis-fp" checked onchange="updateBuilding()"> Faux-Plancher</label>
+                <label><input type="checkbox" id="vis-amb" checked onchange="updateBuilding()"> Ambiance</label>
+                <label><input type="checkbox" id="vis-fc" checked onchange="updateBuilding()"> Faux-Plafond</label>
+            </div>
+            <div class="mt-2 text-xs text-gray-400">
+                <p>Volume Total (Est.): <span id="vol-total" class="font-bold">0</span> m³</p>
+            </div>
+        </div>
+
+        <!-- Tab 2: Furniture -->
+        <div id="tab-furn" class="tab-content hidden">
+            <div class="control-group">
+                <h3><i class="fas fa-project-diagram"></i> Cas d'Usage</h3>
+                <select id="use-case" onchange="updateUseCaseUI(); updateBuilding();">
+                    <option value="none">Vide</option>
+                    <option value="datacenter">Data Center</option>
+                    <option value="ehpad">EHPAD / Hôpital</option>
+                    <option value="hotel">Hôtel</option>
+                </select>
+            </div>
+
+            <!-- Data Center Controls -->
+            <div id="controls-datacenter" class="hidden">
+                <div class="control-group">
+                    <h3>Configuration Baies</h3>
+                    <label>Largeur Baie (m) <input type="number" id="dc-w" value="0.6" step="0.1"
+                            onchange="updateBuilding()"></label>
+                    <label>Profondeur Baie (m) <input type="number" id="dc-d" value="1.0" step="0.1"
+                            onchange="updateBuilding()"></label>
+                    <label>Hauteur Baie (m) <input type="number" id="dc-h" value="2.0" step="0.1"
+                            onchange="updateBuilding()"></label>
+                    <label>Allée (m) <input type="number" id="dc-gap" value="1.2" step="0.1"
+                            onchange="updateBuilding()"></label>
+                    <label>Nb Rangées (0=Auto) <input type="number" id="dc-rows-count" value="0"
+                            onchange="updateBuilding()"></label>
+                    <label>Baies/Rangée (0=Auto) <input type="number" id="dc-racks-per-row" value="0"
+                            onchange="updateBuilding()"></label>
+                </div>
+            </div>
+
+            <!-- EHPAD Controls -->
+            <div id="controls-ehpad" class="hidden">
+                <div class="control-group">
+                    <h3>Configuration Chambres</h3>
+                    <label>Largeur Ch. (m) <input type="number" id="ehpad-room-x" value="4"
+                            onchange="updateBuilding()"></label>
+                    <label>Prof. Ch. (m) <input type="number" id="ehpad-room-z" value="5"
+                            onchange="updateBuilding()"></label>
+                    <label>Type Lit
+                        <select id="ehpad-bed-type" onchange="updateBuilding()">
+                            <option value="std">Standard</option>
+                            <option value="pmr">Médicalisé (PMR)</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Hotel Controls -->
+            <div id="controls-hotel" class="hidden">
+                <div class="control-group">
+                    <h3>Configuration Suites</h3>
+                    <label>Largeur (m) <input type="number" id="hotel-x" value="5" onchange="updateBuilding()"></label>
+                    <label>Profondeur (m) <input type="number" id="hotel-z" value="6"
+                            onchange="updateBuilding()"></label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Detection -->
+        <div id="tab-det" class="tab-content hidden">
+            <div class="control-group">
+                <h3><i class="fas fa-satellite-dish"></i> Type Détection</h3>
+                <select id="det-type" onchange="updateDetectionUI(); updateDetection();">
+                    <option value="optical">Détecteurs Optiques (Ponctuels)</option>
+                    <option value="vesda">Aspiration (VESDA)</option>
+                </select>
+            </div>
+
+            <!-- Optical Controls -->
+            <div id="controls-optical">
+                <div class="control-group">
+                    <h3>Placement Manuel</h3>
+                    <label>Niveau
+                        <select id="opt-layer-select">
+                            <option value="amb">Ambiance (Plafond)</option>
+                            <option value="fp">Faux-Plancher</option>
+                            <option value="fc">Faux-Plafond</option>
+                        </select>
+                    </label>
+                    <div class="flex gap-2 mt-2">
+                        <button class="btn-primary flex-1" id="btn-place-det" onclick="toggleOpticalMode()"><i
+                                class="fas fa-plus-circle"></i> Ajouter</button>
+                        <button class="btn-danger" id="btn-delete-det" onclick="toggleDeleteMode()"><i
+                                class="fas fa-eraser"></i></button>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-400">
+                        <label><input type="checkbox" id="snap-toggle-opt" checked> Grille 0.5m</label>
+                        <span id="cursor-coords-opt" class="ml-2"></span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <h3>Liste Détecteurs</h3>
+                    <div id="detector-list" class="item-list"></div>
+                </div>
+            </div>
+
+            <!-- VESDA Controls -->
+            <div id="controls-vesda" class="hidden">
+                <div class="control-group">
+                    <h3>Unités VESDA</h3>
+                    <div class="flex gap-2">
+                        <button class="btn-primary flex-1" id="btn-place-vesda" onclick="toggleVesdaMode()"><i
+                                class="fas fa-box"></i> Placer un VESDA</button>
+                        <button class="btn-danger" id="btn-delete-vesda" onclick="toggleDeleteMode()"><i
+                                class="fas fa-eraser"></i></button>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-400">
+                        <label><input type="checkbox" id="snap-toggle-vesda" checked> Snap Mur</label>
+                        <span id="cursor-coords-vesda" class="ml-2"></span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <h3>Liste VESDA</h3>
+                    <div id="vesda-list" class="item-list"></div>
+                    <button class="btn-secondary w-full mt-2" onclick="clearVesdas()">Tout Effacer</button>
+                </div>
+                <div class="control-group">
+                    <h3>Réseau d'aspiration</h3>
+                    <label><input type="checkbox" id="vesda-layer-fc" onchange="updateDetection()"> Faux-Plafond</label>
+                    <label><input type="checkbox" id="vesda-layer-amb" checked onchange="updateDetection()">
+                        Ambiance</label>
+                    <label><input type="checkbox" id="vesda-layer-fp" onchange="updateDetection()">
+                        Faux-Plancher</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Extinction -->
+        <div id="tab-ext" class="tab-content hidden">
+            <div class="control-group">
+                <h3><i class="fas fa-fire-extinguisher"></i> Système Extinction</h3>
+                <select id="ext-type" onchange="updateExtinctionUI(); fetchGasCalculation();">
+                    <option value="none">Aucun</option>
+                    <option value="ig55">Gaz Inerte (IG55)</option>
+                    <option value="hifog">Brouillard d'Eau (Hi-Fog)</option>
+                </select>
+            </div>
+
+            <div class="mt-4 mb-4">
+                <button class="btn-primary w-full" onclick="generateReport()">
+                    <i class="fas fa-file-pdf"></i> Télécharger Rapport PDF
+                </button>
+            </div>
+
+            <!-- IG55 Controls -->
+            <div id="controls-ig55" class="hidden">
+                <div class="info-box">
+                    <i class="fas fa-info-circle"></i>
+                    <p>Calcul auto: 1 bouteille / 30m² (Backend Python).</p>
+                </div>
+            </div>
+
+            <!-- Hi-Fog Controls -->
+            <div id="controls-hifog" class="hidden">
+                <div class="info-box">
+                    <i class="fas fa-info-circle"></i>
+                    <p>Calcul selon règle : Tank basé sur surface (div 16).</p>
+                </div>
+            </div>
+
+            <div id="ext-results" class="result-box hidden mt-4">
+                <h4><i class="fas fa-calculator"></i> Dimensionnement</h4>
+                <div id="ext-details"></div>
+            </div>
+
+            <div id="gas-results" class="result-box mt-4">
+                <h4><i class="fas fa-flask"></i> Détails Gaz (Backend)</h4>
+                <div id="gas-results-content" class="text-sm">En attente...</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- jsPDF & AutoTable -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- App Logic -->
+    <script src="assets/js/app.js" defer></script>
+    <script src="assets/js/report.js" defer></script>
+</body>
+
+</html>
