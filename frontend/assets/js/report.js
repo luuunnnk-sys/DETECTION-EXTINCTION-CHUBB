@@ -3,8 +3,13 @@ function generateReport() {
     const doc = new jsPDF();
 
     // --- PARTIE VISUELLE 3D ---
+    // --- PARTIE VISUELLE 3D ---
+    // Force labels visible for export
+    const wasLabelsVisible = labelGroup.visible;
+    labelGroup.visible = true;
     renderer.render(scene, camera);
     const img = renderer.domElement.toDataURL("image/png");
+    labelGroup.visible = wasLabelsVisible; // Restore state
 
     // --- CRÉATION DU PDF ---
     // Titre

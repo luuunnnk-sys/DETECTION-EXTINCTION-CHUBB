@@ -4,6 +4,7 @@ let furnitureGroup = new THREE.Group();
 let detectionGroup = new THREE.Group();
 let extinctionGroup = new THREE.Group();
 let manualGroup = new THREE.Group();
+let labelGroup = new THREE.Group();
 let wallColliders = [];
 let manualItems = [];
 
@@ -70,6 +71,7 @@ function init() {
     scene.add(detectionGroup);
     scene.add(extinctionGroup);
     scene.add(manualGroup);
+    scene.add(labelGroup);
 
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -170,6 +172,7 @@ function updateAll() {
 function updateBuilding() {
     while (buildingGroup.children.length > 0) buildingGroup.remove(buildingGroup.children[0]);
     while (furnitureGroup.children.length > 0) furnitureGroup.remove(furnitureGroup.children[0]);
+    while (labelGroup.children.length > 0) labelGroup.remove(labelGroup.children[0]);
     wallColliders = [];
 
     const L = parseFloat(document.getElementById('dim-l').value);
@@ -186,9 +189,15 @@ function updateBuilding() {
         return m;
     };
 
-    if (document.getElementById('vis-fp').checked) buildingGroup.add(createL(COLORS.fp, hFP, curY));
+    if (document.getElementById('vis-fp').checked) {
+        buildingGroup.add(createL(COLORS.fp, hFP, curY));
+        addLayerLabel("Faux-Plancher", curY + hFP / 2, L, W, '#eab308');
+    }
     curY += hFP;
-    if (document.getElementById('vis-amb').checked) buildingGroup.add(createL(COLORS.amb, hAmb, curY));
+    if (document.getElementById('vis-amb').checked) {
+        buildingGroup.add(createL(COLORS.amb, hAmb, curY));
+        addLayerLabel("Ambiance", curY + hAmb / 2, L, W, '#f97316');
+    }
 
     const wallH = hAmb; const wallY = curY + hAmb / 2;
     createCollider(L, wallH, 0, wallY, W / 2, 0, Math.PI, 'Z', new THREE.Vector3(0, 0, -1));
@@ -209,10 +218,49 @@ function updateBuilding() {
     else if (useCase === 'hotel') generateHotel(L, W, curY + 0.05);
 
     curY += hAmb;
-    if (document.getElementById('vis-fc').checked) buildingGroup.add(createL(COLORS.fc, hFC, curY));
+    if (document.getElementById('vis-fc').checked) {
+        buildingGroup.add(createL(COLORS.fc, hFC, curY));
+        addLayerLabel("Faux-Plafond", curY + hFC / 2, L, W, '#22c55e');
+    }
 
     // Updated by Python now, but keeping local update for immediate feedback if needed
     document.getElementById('vol-total').innerText = (L * W * (hFP + hAmb + hFC)).toFixed(2);
+}
+
+function addLayerLabel(text, y, L, W, colorHex) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 512;
+    canvas.height = 128;
+    ctx.fillStyle = colorHex;
+    ctx.fillRect(0, 0, 512, 128);
+    ctx.fillStyle = "black";
+    ctx.font = "bold 40px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, 256, 64);
+    const tex = new THREE.CanvasTexture(canvas);
+    // depthTest: false ensures it renders on top of other objects if needed, but might look weird. 
+    // Instead, let's just move it further out and make it bigger.
+    const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, depthWrite: false });
+    const sprite = new THREE.Sprite(mat);
+    // Position: Left side (-L/2), slightly forward (-W/2 + W/2 = 0 to be centered on side? No, user code had -W/2).
+    // Let's put it at the corner (-W/2) and outside (-L/2 - 0.5)
+    sprite.position.set(-L / 2 - 0.5, y, -W / 2);
+    // Smaller scale
+    sprite.scale.set(2, 0.5, 1);
+    // Ensure renderOrder is high so it appears on top of transparent walls
+    sprite.renderOrder = 999;
+    labelGroup.add(sprite);
+
+    // Apply current visibility preference
+    const checkbox = document.getElementById('vis-labels');
+    if (checkbox) labelGroup.visible = checkbox.checked;
+}
+
+function toggleLabels() {
+    const checkbox = document.getElementById('vis-labels');
+    if (checkbox) labelGroup.visible = checkbox.checked;
 }
 
 function createCollider(w, h, x, y, z, rotX, rotY, axis, normal) {
